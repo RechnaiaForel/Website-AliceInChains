@@ -1,5 +1,18 @@
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+
 from . import views
+
+# ---------------------------------------------------------------------------
+# REST API
+# ---------------------------------------------------------------------------
+router = DefaultRouter()
+router.register(r'categories', views.CategoryViewSet, basename='category')
+router.register(r'manufacturers', views.ManufacturerViewSet, basename='manufacturer')
+router.register(r'products', views.ProductViewSet, basename='product')
+router.register(r'carts', views.CartViewSet, basename='cart')
+router.register(r'cart-items', views.CartItemViewSet, basename='cartitem')
+
 
 urlpatterns = [
     # Информационные страницы
@@ -20,4 +33,7 @@ urlpatterns = [
     # Оформление заказа
     path('checkout/', views.checkout, name='checkout'),
     path('checkout/done/<int:order_id>/', views.checkout_done, name='checkout_done'),
+
+    # REST API (DRF)
+    path('api/', include(router.urls)),
 ]

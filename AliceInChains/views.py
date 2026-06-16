@@ -8,8 +8,16 @@ from django.conf import settings
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from rest_framework import viewsets, permissions
 
 from .models import Cart, CartItem, Category, Manufacturer, Order, OrderItem, Product
+from .serializers import (
+    CartItemSerializer,
+    CartSerializer,
+    CategorySerializer,
+    ManufacturerSerializer,
+    ProductSerializer,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -263,3 +271,54 @@ def send_receipt_email(order):
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
     email.send(fail_silently=True)
+
+
+# ---------------------------------------------------------------------------
+# REST API (Django REST Framework)
+# ---------------------------------------------------------------------------
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class ManufacturerViewSet(viewsets.ModelViewSet):
+    queryset = Manufacturer.objects.all()
+    serializer_class = ManufacturerSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.select_related('category', 'manufacturer').all()
+    serializer_class = ProductSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class CartViewSet(viewsets.ModelViewSet):
+    """
+    Каждый пользователь видит и может изменять только свою собственную
+    корзину — отдельной для каждого пользователя (OneToOneField), поэтому
+    queryset ограничивается текущим пользователем.
+    """
+    serializer_class = CartSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Cart.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class CartItemViewSet(viewsets.ModelViewSet):
+    """
+    Аналогично CartViewSet: пользователь работает только с элементами
+    собственной корзины.
+    """
+    serializer_class = CartItemSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return CartItem.objects.filter(cart__user=self.request.user)
+

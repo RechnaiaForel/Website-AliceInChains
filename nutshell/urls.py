@@ -12,6 +12,8 @@ from django.urls import path, include
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
+    # Login/logout для browsable API DRF (кнопки "Log in" в /api/...)
+    path('api-auth/', include('rest_framework.urls')),
     path('', include('AliceInChains.urls')),
 ]
 

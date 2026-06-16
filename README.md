@@ -7,6 +7,7 @@ e-mail.
 ## Стек
 
 - Python, Django 6.0
+- Django REST Framework (REST API)
 - SQLite (база данных по умолчанию)
 - Bootstrap 5 (вёрстка)
 - openpyxl (генерация чека в формате Excel)
@@ -69,6 +70,69 @@ python manage.py runserver
    суммой.
 4. Чек отправляется на e-mail пользователя через `send_mail`/`EmailMessage`.
 5. Корзина пользователя очищается.
+
+## REST API (Django REST Framework)
+
+В проект добавлен REST API на базе DRF (`ModelViewSet` + `DefaultRouter`).
+Доступ к API только у аутентифицированных пользователей.
+
+| Endpoint | Методы | Описание |
+| --- | --- | --- |
+| `/api/categories/` | GET, POST | Список / создание категорий |
+| `/api/categories/<id>/` | GET, PUT, PATCH, DELETE | Категория по id |
+| `/api/manufacturers/` | GET, POST | Список / создание производителей |
+| `/api/manufacturers/<id>/` | GET, PUT, PATCH, DELETE | Производитель по id |
+| `/api/products/` | GET, POST | Список / создание товаров |
+| `/api/products/<id>/` | GET, PUT, PATCH, DELETE | Товар по id |
+| `/api/carts/` | GET | Корзина текущего пользователя (одна запись) |
+| `/api/cart-items/` | GET, POST | Элементы корзины текущего пользователя |
+| `/api/cart-items/<id>/` | GET, PUT, PATCH, DELETE | Элемент корзины по id |
+
+`/api/carts/` и `/api/cart-items/` всегда возвращают данные только текущего
+пользователя — выборка ограничена в `get_queryset()` соответствующего
+ViewSet.
+
+### Аутентификация
+
+Поддерживаются два способа:
+
+- **SessionAuthentication** — если вы залогинены через обычную форму входа
+  Django (`/accounts/login/`), API доступен прямо из браузера, включая
+  browsable API DRF.
+- **BasicAuthentication** — для запросов из Postman/curl без отдельного
+  логина:
+
+```bash
+curl -u dmitry:ваш_пароль http://127.0.0.1:8000/api/products/
+```
+
+Без аутентификации все запросы к `/api/...` вернут `401 Unauthorized`.
+
+### Пример запросов
+
+```bash
+# Список товаров
+curl -u dmitry:пароль http://127.0.0.1:8000/api/products/
+
+# Создание товара
+curl -u dmitry:пароль -X POST http://127.0.0.1:8000/api/products/ \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Новый товар", "description": "Описание", "price": "100.00", "quantity_in_stock": 5, "category": 1, "manufacturer": 1, "photo": ""}'
+
+# Обновление товара
+curl -u dmitry:пароль -X PUT http://127.0.0.1:8000/api/products/1/ \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Обновлённое название", "description": "...", "price": "120.00", "quantity_in_stock": 3, "category": 1, "manufacturer": 1, "photo": ""}'
+
+# Удаление товара
+curl -u dmitry:пароль -X DELETE http://127.0.0.1:8000/api/products/1/
+```
+
+`POST`/`PUT` с `ImageField` (`photo`) через curl с обычным JSON не подходит
+для загрузки файла — для теста создания товара с фото удобнее использовать
+Postman (form-data) или браузерный интерфейс DRF (`/api/products/`, открыть
+в браузере под залогиненным пользователем).
+
 
 ## Настройка отправки email
 

@@ -32,6 +32,7 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'AliceInChains',
+    'rest_framework',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -163,3 +164,24 @@ DEFAULT_FROM_EMAIL = 'shop@example.com'
 # EMAIL_USE_TLS = True
 # EMAIL_HOST_USER = 'your_email@gmail.com'
 # EMAIL_HOST_PASSWORD = 'your_app_password'
+
+
+# Django REST Framework
+# https://www.django-rest-framework.org/api-guide/settings/
+#
+# SessionAuthentication — позволяет ходить в API из браузера, будучи
+# залогиненным через обычную форму входа Django (удобно для отладки в
+# браузере DRF).
+# BasicAuthentication — позволяет авторизоваться логином/паролем прямо
+# в запросе (удобно для проверки через curl/Postman без отдельной формы
+# логина).
+# IsAuthenticated — доступ к API только у вошедших пользователей.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
