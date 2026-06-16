@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Оформление заказа — Музыкальный магазин{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Оформление заказа</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Товар</th>
+                <th>Количество</th>
+                <th>Сумма</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.item_price }} руб.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="2" class="text-end">Итого:</th>
+                <th>{{ total }} руб.</th>
+            </tr>
+        </tfoot>
+    </table>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="address" class="form-label">Адрес доставки</label>
+            <textarea id="address" name="address" class="form-control" rows="3" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-success">Подтвердить заказ</button>
+        <a href="{% url 'cart_view' %}" class="btn btn-link">Вернуться в корзину</a>
+    </form>
+{% endblock %}

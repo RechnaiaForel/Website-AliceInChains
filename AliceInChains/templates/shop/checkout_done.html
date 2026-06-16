@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Заказ оформлен — Музыкальный магазин{% endblock %}
+
+{% block content %}
+    <div class="alert alert-success">
+        <h1 class="h3">Спасибо за заказ!</h1>
+        <p>Заказ №{{ order.id }} успешно оформлен.</p>
+    </div>
+
+    <ul class="list-group mb-4">
+        <li class="list-group-item d-flex justify-content-between">
+            <span>Дата заказа</span>
+            <span>{{ order.created_at }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+            <span>Адрес доставки</span>
+            <span>{{ order.delivery_address }}</span>
+        </li>
+        <li class="list-group-item d-flex justify-content-between">
+            <span>Сумма заказа</span>
+            <span>{{ order.total_price }} руб.</span>
+        </li>
+    </ul>
+
+    {% if order.user.email %}
+        <p>Чек отправлен на электронную почту: <strong>{{ order.user.email }}</strong></p>
+    {% else %}
+        <p class="text-muted">У вашего профиля не указан e-mail, поэтому чек не был отправлен по почте.</p>
+    {% endif %}
+
+    <a href="{% url 'product_list' %}" class="btn btn-primary">Вернуться в каталог</a>
+{% endblock %}
