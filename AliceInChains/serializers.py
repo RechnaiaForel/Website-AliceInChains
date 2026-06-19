@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Cart, CartItem, Category, Manufacturer, Product
+from .models import Cart, CartItem, Category, Manufacturer, Order, OrderItem, Product, Profile
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -71,3 +71,34 @@ class CartSerializer(serializers.ModelSerializer):
 
     def get_total_price(self, obj):
         return obj.total_price()
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    email = serializers.EmailField(source='user.email', read_only=True)
+    is_staff = serializers.BooleanField(source='user.is_staff', read_only=True)
+
+    class Meta:
+        model = Profile
+        fields = ['username', 'email', 'is_staff', 'full_name', 'phone', 'address']
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    item_price = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'product', 'product_name', 'quantity', 'price', 'item_price']
+
+    def get_item_price(self, obj):
+        return obj.item_price()
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    items = OrderItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ['id', 'username', 'created_at', 'delivery_address', 'total_price', 'items']

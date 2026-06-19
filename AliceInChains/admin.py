@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Cart, CartItem, Category, Manufacturer, Order, OrderItem, Product
+from .models import Cart, CartItem, Category, Manufacturer, Order, OrderItem, Product, Profile
 
 
 class CartItemInline(admin.TabularInline):
@@ -50,3 +50,14 @@ class OrderAdmin(admin.ModelAdmin):
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
     list_display = ('id', 'order', 'product', 'quantity', 'price')
+
+
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'full_name', 'phone', 'is_admin')
+    search_fields = ('user__username', 'full_name', 'phone')
+
+    def is_admin(self, obj):
+        return obj.user.is_staff
+    is_admin.short_description = 'Администратор'
+    is_admin.boolean = True

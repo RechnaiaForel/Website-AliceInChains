@@ -1,0 +1,217 @@
+/* ===========================================================
+   Музыкальный магазин — фирменные стили
+   Палитра вдохновлена деревом и латунью музыкальных инструментов.
+   =========================================================== */
+
+:root {
+  --color-bg: #faf6f0;
+  --color-surface: #ffffff;
+  --color-ink: #2b1b12;
+  --color-ink-soft: #5a4636;
+  --color-accent: #b5651d;
+  --color-accent-dark: #8c4e16;
+  --color-gold: #c9a227;
+  --color-border: #e8ddcc;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4, .display-1, .display-2, .display-3,
+.display-4, .display-5, .display-6, .brand-font {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--color-accent-dark);
+}
+
+a:hover {
+  color: var(--color-accent);
+}
+
+/* ---------- Навигация ---------- */
+
+.site-navbar {
+  background-color: var(--color-ink) !important;
+  border-bottom: 3px solid var(--color-gold);
+}
+
+.site-navbar .navbar-brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: #f5efe6 !important;
+}
+
+.site-navbar .nav-link {
+  color: #e7dccb !important;
+}
+
+.site-navbar .nav-link:hover {
+  color: var(--color-gold) !important;
+}
+
+/* ---------- Кнопки ---------- */
+
+.btn-primary,
+.btn-amber {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
+.btn-primary:hover,
+.btn-amber:hover {
+  background-color: var(--color-accent-dark);
+  border-color: var(--color-accent-dark);
+  color: #fff;
+}
+
+.btn-outline-primary {
+  color: var(--color-accent-dark);
+  border-color: var(--color-accent);
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
+/* ---------- Hero-секция главной страницы ---------- */
+
+.hero {
+  background: linear-gradient(135deg, var(--color-ink) 0%, #44301f 100%);
+  color: #f5efe6;
+  border-radius: 0.75rem;
+  padding: 3.5rem 2.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-gold), transparent);
+}
+
+.hero .lead {
+  color: #e7dccb;
+}
+
+/* ---------- Карточки товаров ---------- */
+
+.product-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.6rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  height: 100%;
+}
+
+.product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0.75rem 1.5rem rgba(43, 27, 18, 0.12);
+}
+
+.product-card .card-img-top {
+  height: 190px;
+  object-fit: contain;
+  padding: 0.75rem;
+  background-color: #fff;
+}
+
+.product-card .price {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-accent-dark);
+}
+
+.badge-in-stock {
+  background-color: #4c7a4c;
+}
+
+.badge-out-of-stock {
+  background-color: var(--color-ink-soft);
+}
+
+/* ---------- Категории на главной ---------- */
+
+.category-pill {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  margin: 0.25rem;
+  border: 1px solid var(--color-accent);
+  border-radius: 2rem;
+  color: var(--color-accent-dark);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.category-pill:hover {
+  background-color: var(--color-accent);
+  color: #fff;
+}
+
+/* ---------- Каталог: боковая панель фильтров ---------- */
+
+.filter-panel {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.6rem;
+  padding: 1.25rem;
+}
+
+.filter-panel label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--color-ink-soft);
+}
+
+/* ---------- Хлебные крошки ---------- */
+
+.breadcrumb {
+  background: transparent;
+  padding-left: 0;
+}
+
+/* ---------- Футер ---------- */
+
+.site-footer {
+  background-color: var(--color-ink);
+  color: #cdbfa9;
+  margin-top: 3rem;
+  padding: 2rem 0;
+}
+
+.site-footer a {
+  color: #e7dccb;
+}
+
+/* ---------- Спиннер / уведомления для JS-каталога ---------- */
+
+#catalog-loading {
+  padding: 3rem 0;
+  text-align: center;
+}
+
+#catalog-error {
+  display: none;
+}
+
+.toast-container {
+  z-index: 1080;
+}

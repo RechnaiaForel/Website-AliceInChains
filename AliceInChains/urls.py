@@ -12,6 +12,7 @@ router.register(r'manufacturers', views.ManufacturerViewSet, basename='manufactu
 router.register(r'products', views.ProductViewSet, basename='product')
 router.register(r'carts', views.CartViewSet, basename='cart')
 router.register(r'cart-items', views.CartItemViewSet, basename='cartitem')
+router.register(r'orders', views.OrderViewSet, basename='order')
 
 
 urlpatterns = [
@@ -19,6 +20,10 @@ urlpatterns = [
     path('', views.index, name='index'),
     path('author/', views.author, name='author'),
     path('about/', views.about, name='about'),
+
+    # Регистрация и личный кабинет
+    path('register/', views.register, name='register'),
+    path('profile/', views.profile_view, name='profile_view'),
 
     # Каталог товаров
     path('catalog/', views.product_list, name='product_list'),
@@ -35,5 +40,7 @@ urlpatterns = [
     path('checkout/done/<int:order_id>/', views.checkout_done, name='checkout_done'),
 
     # REST API (DRF)
+    path('api/me/', views.MeAPIView.as_view(), name='api_me'),
+    path('api/cart/add/', views.cart_add_api, name='api_cart_add'),
     path('api/', include(router.urls)),
 ]

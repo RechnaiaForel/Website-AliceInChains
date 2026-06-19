@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+
+{% block title %}Личный кабинет — AliceInChains Shop{% endblock %}
+
+{% block content %}
+
+{% if user.is_authenticated %}
+
+<h1 class="mb-4"><i class="bi bi-person-circle me-2"></i>Личный кабинет</h1>
+
+<div class="row g-4">
+
+  <!-- Профиль -->
+  <div class="col-md-5">
+    <div class="card h-100" style="border-color: var(--color-border)">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Мои данные</h5>
+
+        <!-- Состояние: загрузка -->
+        <div id="profileLoading" class="text-center py-3">
+          <div class="spinner-border spinner-border-sm" role="status"></div>
+          <p class="mt-1 small text-muted">Загрузка профиля…</p>
+        </div>
+
+        <!-- Данные профиля (заполняются JS) -->
+        <div id="profileData" class="d-none">
+          <ul class="list-unstyled mb-3">
+            <li><strong>Логин:</strong> <span id="pUsername"></span></li>
+            <li><strong>Email:</strong> <span id="pEmail"></span></li>
+            <li><strong>Роль:</strong> <span id="pRole"></span></li>
+          </ul>
+
+          <h6>Редактировать профиль</h6>
+          <div class="mb-2">
+            <label class="form-label small">ФИО</label>
+            <input type="text" id="pFullName" class="form-control form-control-sm">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Телефон</label>
+            <input type="text" id="pPhone" class="form-control form-control-sm">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small">Адрес доставки</label>
+            <input type="text" id="pAddress" class="form-control form-control-sm">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="saveProfile()">
+            <i class="bi bi-floppy me-1"></i>Сохранить
+          </button>
+          <div id="profileSaveStatus" class="mt-2 small"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Заказы -->
+  <div class="col-md-7">
+    <div class="card h-100" style="border-color: var(--color-border)">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Мои заказы</h5>
+
+        <div id="ordersLoading" class="text-center py-3">
+          <div class="spinner-border spinner-border-sm" role="status"></div>
+          <p class="mt-1 small text-muted">Загрузка заказов…</p>
+        </div>
+
+        <div id="ordersData" class="d-none">
+          <div id="ordersEmpty" class="text-center text-muted py-3 d-none">
+            <i class="bi bi-bag-x fs-2 d-block mb-2"></i>
+            У вас ещё нет заказов.
+            <a href="{% url 'product_list' %}" class="d-block mt-2">Перейти в каталог</a>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm table-hover d-none" id="ordersTable">
+              <thead>
+                <tr>
+                  <th>№</th>
+                  <th>Дата</th>
+                  <th>Адрес</th>
+                  <th class="text-end">Сумма</th>
+                </tr>
+              </thead>
+              <tbody id="ordersTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+
+<!-- Гость -->
+<div class="text-center py-5">
+  <i class="bi bi-person-lock fs-1 text-muted d-block mb-3"></i>
+  <h2>Личный кабинет</h2>
+  <p class="text-muted">Для доступа к личному кабинету необходимо войти в систему.</p>
+  <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-primary me-2">Войти</a>
+  <a href="{% url 'register' %}" class="btn btn-outline-secondary">Зарегистрироваться</a>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if user.is_authenticated %}
+<script>
+// ---------- Загрузка профиля ----------
+async function loadProfile() {
+  try {
+    const resp = await fetch('/api/me/', {
+      headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+    });
+
+    if (resp.status === 401 || resp.status === 403) {
+      document.getElementById('profileLoading').innerHTML =
+        '<p class="text-danger small">Нет доступа (401/403).</p>';
+      return;
+    }
+
+    const data = await resp.json();
+    document.getElementById('pUsername').textContent = data.username || '—';
+    document.getElementById('pEmail').textContent    = data.email    || '—';
+    document.getElementById('pRole').textContent     = data.is_staff ? 'Администратор' : 'Покупатель';
+    document.getElementById('pFullName').value = data.full_name || '';
+    document.getElementById('pPhone').value   = data.phone     || '';
+    document.getElementById('pAddress').value = data.address   || '';
+
+    document.getElementById('profileLoading').classList.add('d-none');
+    document.getElementById('profileData').classList.remove('d-none');
+  } catch (err) {
+    document.getElementById('profileLoading').innerHTML =
+      '<p class="text-danger small">Не удалось загрузить профиль.</p>';
+  }
+}
+
+// ---------- Сохранение профиля (PATCH /api/me/) ----------
+async function saveProfile() {
+  const body = {
+    full_name: document.getElementById('pFullName').value,
+    phone:     document.getElementById('pPhone').value,
+    address:   document.getElementById('pAddress').value,
+  };
+
+  const status = document.getElementById('profileSaveStatus');
+  status.textContent = 'Сохраняем…';
+
+  try {
+    const resp = await fetch('/api/me/', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': window.CSRF_TOKEN,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (resp.ok) {
+      status.innerHTML = '<span class="text-success"><i class="bi bi-check2"></i> Сохранено!</span>';
+    } else {
+      const err = await resp.json();
+      status.innerHTML = `<span class="text-danger">Ошибка: ${JSON.stringify(err)}</span>`;
+    }
+  } catch {
+    status.innerHTML = '<span class="text-danger">Ошибка соединения.</span>';
+  }
+}
+
+// ---------- Загрузка заказов ----------
+async function loadOrders() {
+  try {
+    const resp = await fetch('/api/orders/', {
+      headers: { 'X-CSRFToken': window.CSRF_TOKEN }
+    });
+
+    if (resp.status === 401 || resp.status === 403) {
+      document.getElementById('ordersLoading').innerHTML =
+        '<p class="text-danger small">Ошибка 401/403.</p>';
+      return;
+    }
+
+    const data = await resp.json();
+    const orders = data.results || data;
+
+    document.getElementById('ordersLoading').classList.add('d-none');
+    document.getElementById('ordersData').classList.remove('d-none');
+
+    if (!orders.length) {
+      document.getElementById('ordersEmpty').classList.remove('d-none');
+      return;
+    }
+
+    const tbody = document.getElementById('ordersTableBody');
+    orders.forEach(o => {
+      const d = new Date(o.created_at).toLocaleDateString('ru-RU');
+      tbody.insertAdjacentHTML('beforeend', `
+        <tr>
+          <td>${o.id}</td>
+          <td>${d}</td>
+          <td>${o.delivery_address}</td>
+          <td class="text-end">${parseFloat(o.total_price).toFixed(2)} руб.</td>
+        </tr>
+      `);
+    });
+
+    document.getElementById('ordersTable').classList.remove('d-none');
+
+  } catch (err) {
+    document.getElementById('ordersLoading').innerHTML =
+      '<p class="text-danger small">Не удалось загрузить заказы.</p>';
+  }
+}
+
+loadProfile();
+loadOrders();
+</script>
+{% endif %}
+{% endblock %}

@@ -4,6 +4,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 class Category(models.Model):
@@ -96,3 +98,26 @@ class OrderItem(models.Model):
 
     def item_price(self):
         return self.price * self.quantity
+
+
+class Profile(models.Model):
+    """
+    Дополнительные данные пользователя. Роль администратора не хранится
+    здесь отдельным полем — используется встроенный флаг `is_staff` модели
+    User (вариант 1 из задания): обычные покупатели — is_staff=False,
+    администраторы (продавцы) — is_staff=True (либо суперпользователь).
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    full_name = models.CharField(max_length=150, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return f"Профиль пользователя {self.user.username}"
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    """При создании нового User автоматически заводим его Profile."""
+    if created:
+        Profile.objects.get_or_create(user=instance)

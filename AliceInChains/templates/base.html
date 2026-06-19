@@ -1,45 +1,162 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Музыкальный магазин{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Музыкальный магазин{% endblock %}</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+  <!-- Собственные стили -->
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+  {% block head_extra %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="{% url 'index' %}">🎸 Музыкальный магазин</a>
-            <div class="navbar-nav ms-auto flex-row gap-2">
-                <a class="nav-link" href="{% url 'product_list' %}">Каталог</a>
-                <a class="nav-link" href="{% url 'cart_view' %}">Корзина</a>
-                <a class="nav-link" href="{% url 'about' %}">О магазине</a>
-                <a class="nav-link" href="{% url 'author' %}">Об авторе</a>
-                {% if user.is_authenticated %}
-                    <span class="nav-link text-light">{{ user.username }}</span>
-                    <form action="{% url 'logout' %}" method="post" class="d-inline">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-link nav-link p-0">Выйти</button>
-                    </form>
-                {% else %}
-                    <a class="nav-link" href="{% url 'login' %}">Войти</a>
-                {% endif %}
-            </div>
-        </div>
-    </nav>
 
-    <div class="container">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags|default:'info' }}" role="alert">
-                    {{ message }}
-                </div>
-            {% endfor %}
+<!-- ======================== НАВИГАЦИЯ ======================== -->
+<nav class="navbar navbar-expand-lg site-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="{% url 'index' %}">
+      <i class="bi bi-music-note-beamed me-2"></i>AliceInChains Shop
+    </a>
+    <button class="navbar-toggler" type="button"
+            data-bs-toggle="collapse" data-bs-target="#navMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navMain">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}"
+             href="{% url 'index' %}">Главная</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'product_list' %}active{% endif %}"
+             href="{% url 'product_list' %}">Каталог</a>
+        </li>
+        {% if user.is_authenticated %}
+        <li class="nav-item">
+          <a class="nav-link {% if request.resolver_match.url_name == 'cart_view' %}active{% endif %}"
+             href="{% url 'cart_view' %}">
+            <i class="bi bi-cart3"></i> Корзина
+          </a>
+        </li>
         {% endif %}
+      </ul>
 
-        {% block content %}{% endblock %}
+      <ul class="navbar-nav ms-auto align-items-lg-center gap-1">
+        {% if user.is_authenticated %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'profile_view' %}">
+              <i class="bi bi-person-circle"></i> {{ user.username }}
+            </a>
+          </li>
+          {% if user.is_staff %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'admin:index' %}">
+                <i class="bi bi-gear"></i> Админ
+              </a>
+            </li>
+          {% endif %}
+          <li class="nav-item">
+            <form action="{% url 'logout' %}" method="post" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-light">Выйти</button>
+            </form>
+          </li>
+        {% else %}
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'login' %}">Войти</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-sm btn-amber ms-1" href="{% url 'register' %}">Регистрация</a>
+          </li>
+        {% endif %}
+      </ul>
     </div>
+  </div>
+</nav>
+<!-- ======================== / НАВИГАЦИЯ ======================== -->
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+<!-- Toast-уведомление (используется main.js) -->
+<div class="toast-container position-fixed top-0 end-0 p-3">
+  <div id="cartToast" class="toast align-items-center border-0" role="alert" aria-live="assertive">
+    <div class="d-flex">
+      <div class="toast-body" id="cartToastBody">Товар добавлен в корзину.</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto"
+              data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<main class="py-4">
+  <div class="container">
+
+    <!-- Django messages -->
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<!-- ======================== ФУТЕР ======================== -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        <h5 class="brand-font text-white">AliceInChains Shop</h5>
+        <p class="small mb-0">Музыкальные инструменты от лучших производителей. Для тех, кто живёт музыкой.</p>
+      </div>
+      <div class="col-md-4 mb-3">
+        <h6 class="text-white">Разделы</h6>
+        <ul class="list-unstyled small">
+          <li><a href="{% url 'index' %}">Главная</a></li>
+          <li><a href="{% url 'product_list' %}">Каталог</a></li>
+          <li><a href="{% url 'about' %}">О магазине</a></li>
+          <li><a href="{% url 'author' %}">Об авторе</a></li>
+        </ul>
+      </div>
+      <div class="col-md-4 mb-3">
+        <h6 class="text-white">API</h6>
+        <ul class="list-unstyled small">
+          <li><a href="/api/">REST API (DRF)</a></li>
+          <li><a href="/api/products/">Товары API</a></li>
+        </ul>
+      </div>
+    </div>
+    <hr class="border-secondary">
+    <p class="text-center small mb-0">© 2025 AliceInChains Shop — учебный проект Django</p>
+  </div>
+</footer>
+<!-- ======================== / ФУТЕР ======================== -->
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- CSRF-токен для fetch-запросов -->
+<script>
+  window.CSRF_TOKEN = "{{ csrf_token }}";
+  window.USER_AUTHENTICATED = {{ user.is_authenticated|yesno:"true,false" }};
+</script>
+
+<!-- Собственный JS -->
+<script src="{% static 'js/main.js' %}"></script>
+
+{% block scripts %}{% endblock %}
 </body>
 </html>

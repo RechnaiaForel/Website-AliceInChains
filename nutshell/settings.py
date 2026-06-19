@@ -56,7 +56,7 @@ ROOT_URLCONF = 'nutshell.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -117,6 +117,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # Файлы, загружаемые пользователями / используемые моделями (фото товаров)
 # https://docs.djangoproject.com/en/6.0/topics/files/
@@ -134,7 +135,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # https://docs.djangoproject.com/en/6.0/topics/auth/default/
 
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'product_list'
+LOGIN_REDIRECT_URL = 'profile_view'
 LOGOUT_REDIRECT_URL = 'index'
 
 
@@ -170,18 +171,26 @@ DEFAULT_FROM_EMAIL = 'shop@example.com'
 # https://www.django-rest-framework.org/api-guide/settings/
 #
 # SessionAuthentication — позволяет ходить в API из браузера, будучи
-# залогиненным через обычную форму входа Django (удобно для отладки в
-# браузере DRF).
+# залогиненным через обычную форму входа Django (так использует JS на
+# страницах сайта — main.js отправляет запросы с тем же сеансом и
+# CSRF-токеном).
 # BasicAuthentication — позволяет авторизоваться логином/паролем прямо
 # в запросе (удобно для проверки через curl/Postman без отдельной формы
 # логина).
-# IsAuthenticated — доступ к API только у вошедших пользователей.
+#
+# Глобальный permission по умолчанию — AllowAny: каталог товаров должен
+# быть доступен и анонимным пользователям. Эндпоинты с приватными данными
+# (корзина, профиль, заказы) и запись в каталог явно требуют
+# аутентификации/прав — это указано в permission_classes самих ViewSet'ов
+# (см. views.py и permissions.py).
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
     ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 9,
 }

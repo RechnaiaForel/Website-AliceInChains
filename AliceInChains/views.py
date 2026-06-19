@@ -2,21 +2,29 @@ import io
 
 import openpyxl
 from django.contrib import messages
+from django.contrib.auth import login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.core.mail import EmailMessage
 from django.conf import settings
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from rest_framework import viewsets, permissions
+from rest_framework import permissions, status, viewsets
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import Cart, CartItem, Category, Manufacturer, Order, OrderItem, Product
+from .forms import RegistrationForm
+from .models import Cart, CartItem, Category, Manufacturer, Order, OrderItem, Product, Profile
+from .permissions import IsAdminOrReadOnly
 from .serializers import (
     CartItemSerializer,
     CartSerializer,
     CategorySerializer,
     ManufacturerSerializer,
+    OrderSerializer,
     ProductSerializer,
+    ProfileSerializer,
 )
 
 
@@ -25,7 +33,12 @@ from .serializers import (
 # ---------------------------------------------------------------------------
 
 def index(request):
-    return render(request, 'index.html')
+    popular_products = Product.objects.select_related('category', 'manufacturer').order_by('-id')[:6]
+    categories = Category.objects.all()
+    return render(request, 'shop/index.html', {
+        'popular_products': popular_products,
+        'categories': categories,
+    })
 
 
 def author(request):
@@ -40,37 +53,52 @@ def about(request):
     )
 
 
+def register(request):
+    if request.user.is_authenticated:
+        return redirect('profile_view')
+
+    if request.method == 'POST':
+        form = RegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            auth_login(request, user)
+            messages.success(request, "Регистрация прошла успешно! Добро пожаловать.")
+            return redirect('profile_view')
+    else:
+        form = RegistrationForm()
+
+    return render(request, 'registration/register.html', {'form': form})
+
+
+def profile_view(request):
+    """
+    Личный кабинет. Доступен всем — но данные профиля и заказы
+    подгружаются через JS (fetch /api/me/ и /api/orders/) только для
+    аутентифицированных пользователей; для гостей шаблон сам покажет
+    сообщение с предложением войти.
+    """
+    return render(request, 'shop/profile.html')
+
+
 # ---------------------------------------------------------------------------
 # Каталог товаров
 # ---------------------------------------------------------------------------
 
 def product_list(request):
-    products = Product.objects.select_related('category', 'manufacturer').all()
-
-    category_id = request.GET.get('category', '')
-    manufacturer_id = request.GET.get('manufacturer', '')
-    query = request.GET.get('q', '').strip()
-
-    if category_id:
-        products = products.filter(category_id=category_id)
-
-    if manufacturer_id:
-        products = products.filter(manufacturer_id=manufacturer_id)
-
-    if query:
-        products = products.filter(
-            Q(name__icontains=query) | Q(description__icontains=query)
-        )
-
+    """
+    Каталог товаров. Сама страница рендерится на сервере (фильтры,
+    разметка), а сетка товаров и пагинация загружаются через JS из
+    /api/products/ (см. static/js/main.js). DRF-пагинация ProductViewSet
+    использует под капотом тот же класс Paginator из Django.
+    """
     context = {
-        'products': products,
         'categories': Category.objects.all(),
         'manufacturers': Manufacturer.objects.all(),
-        'selected_category': category_id,
-        'selected_manufacturer': manufacturer_id,
-        'query': query,
+        'selected_category': request.GET.get('category', ''),
+        'selected_manufacturer': request.GET.get('manufacturer', ''),
+        'query': request.GET.get('search', ''),
     }
-    return render(request, 'shop/product_list.html', context)
+    return render(request, 'shop/catalog.html', context)
 
 
 def product_detail(request, pk):
@@ -278,21 +306,45 @@ def send_receipt_email(order):
 # ---------------------------------------------------------------------------
 
 class CategoryViewSet(viewsets.ModelViewSet):
+    """Каталог категорий: чтение доступно всем, запись — только админам."""
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class ManufacturerViewSet(viewsets.ModelViewSet):
+    """Производители: чтение доступно всем, запись — только админам."""
     queryset = Manufacturer.objects.all()
     serializer_class = ManufacturerSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.select_related('category', 'manufacturer').all()
+    """
+    Товары: чтение (в т.ч. анонимам) доступно всем — этим эндпоинтом
+    пользуется static/js/main.js на странице каталога. Создание,
+    изменение и удаление — только администраторам (is_staff=True).
+    Поддерживает фильтрацию через query-параметры: ?category=<id>,
+    ?manufacturer=<id>, ?search=<текст>.
+    """
     serializer_class = ProductSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminOrReadOnly]
+
+    def get_queryset(self):
+        queryset = Product.objects.select_related('category', 'manufacturer').order_by('-id')
+
+        category_id = self.request.query_params.get('category')
+        manufacturer_id = self.request.query_params.get('manufacturer')
+        search = self.request.query_params.get('search') or self.request.query_params.get('q')
+
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+        if manufacturer_id:
+            queryset = queryset.filter(manufacturer_id=manufacturer_id)
+        if search:
+            queryset = queryset.filter(Q(name__icontains=search) | Q(description__icontains=search))
+
+        return queryset
 
 
 class CartViewSet(viewsets.ModelViewSet):
@@ -321,4 +373,83 @@ class CartItemViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return CartItem.objects.filter(cart__user=self.request.user)
+
+
+class OrderViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Только чтение: обычный пользователь видит лишь свои заказы,
+    администратор (is_staff) — все заказы всех пользователей.
+    """
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = (
+            Order.objects
+            .select_related('user')
+            .prefetch_related('items__product')
+            .order_by('-created_at')
+        )
+        if self.request.user.is_staff:
+            return queryset
+        return queryset.filter(user=self.request.user)
+
+
+class MeAPIView(APIView):
+    """
+    GET  /api/me/ — данные профиля текущего пользователя.
+    PATCH /api/me/ — изменение профиля (full_name, phone, address).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        profile, _ = Profile.objects.get_or_create(user=request.user)
+        return Response(ProfileSerializer(profile).data)
+
+    def patch(self, request):
+        profile, _ = Profile.objects.get_or_create(user=request.user)
+        serializer = ProfileSerializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def cart_add_api(request):
+    """
+    JSON-эндпоинт для кнопки "В корзину" на страницах каталога/товара,
+    вызывается через fetch() из static/js/main.js.
+    Тело запроса: {"product_id": <id>, "quantity": <int, по умолчанию 1>}.
+    """
+    product_id = request.data.get('product_id')
+    product = get_object_or_404(Product, pk=product_id)
+
+    try:
+        quantity_to_add = int(request.data.get('quantity', 1))
+    except (TypeError, ValueError):
+        quantity_to_add = 1
+    if quantity_to_add < 1:
+        quantity_to_add = 1
+
+    cart, _ = Cart.objects.get_or_create(user=request.user)
+    item, _ = CartItem.objects.get_or_create(cart=cart, product=product, defaults={'quantity': 0})
+
+    new_quantity = item.quantity + quantity_to_add
+    if new_quantity > product.quantity_in_stock:
+        new_quantity = product.quantity_in_stock
+
+    if new_quantity <= 0:
+        item.delete()
+        return Response({'detail': 'Товара нет в наличии.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    item.quantity = new_quantity
+    item.save()
+    return Response(
+        {
+            'detail': f'«{product.name}» добавлен в корзину.',
+            'quantity': item.quantity,
+        },
+        status=status.HTTP_200_OK,
+    )
 
