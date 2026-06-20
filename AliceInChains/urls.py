@@ -24,6 +24,7 @@ urlpatterns = [
     # Регистрация и личный кабинет
     path('register/', views.register, name='register'),
     path('profile/', views.profile_view, name='profile_view'),
+    path('settings/', views.settings_view, name='settings_view'),
 
     # Каталог товаров
     path('catalog/', views.product_list, name='product_list'),

@@ -6,7 +6,12 @@
 
 {% if user.is_authenticated %}
 
-<h1 class="mb-4"><i class="bi bi-person-circle me-2"></i>Личный кабинет</h1>
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 class="mb-0"><i class="bi bi-person-circle me-2"></i>Личный кабинет</h1>
+  <a href="{% url 'settings_view' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-gear me-1"></i>Настройки
+  </a>
+</div>
 
 <div class="row g-4">
 
@@ -16,39 +21,22 @@
       <div class="card-body">
         <h5 class="card-title mb-3">Мои данные</h5>
 
-        <!-- Состояние: загрузка -->
         <div id="profileLoading" class="text-center py-3">
           <div class="spinner-border spinner-border-sm" role="status"></div>
           <p class="mt-1 small text-muted">Загрузка профиля…</p>
         </div>
 
-        <!-- Данные профиля (заполняются JS) -->
         <div id="profileData" class="d-none">
-          <ul class="list-unstyled mb-3">
-            <li><strong>Логин:</strong> <span id="pUsername"></span></li>
-            <li><strong>Email:</strong> <span id="pEmail"></span></li>
-            <li><strong>Роль:</strong> <span id="pRole"></span></li>
-          </ul>
 
-          <h6>Редактировать профиль</h6>
-          <div class="mb-2">
-            <label class="form-label small">ФИО</label>
-            <input type="text" id="pFullName" class="form-control form-control-sm">
-          </div>
-          <div class="mb-2">
-            <label class="form-label small">Телефон</label>
-            <input type="text" id="pPhone" class="form-control form-control-sm">
-          </div>
-          <div class="mb-3">
-            <label class="form-label small">Адрес доставки</label>
-            <input type="text" id="pAddress" class="form-control form-control-sm">
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="saveProfile()">
-            <i class="bi bi-floppy me-1"></i>Сохранить
-          </button>
-          <div id="profileSaveStatus" class="mt-2 small"></div>
+          <!-- Бейдж роли -->
+          <div class="mb-3" id="roleBadge"></div>
+
+          <ul class="list-group list-group-flush mb-3" id="profileList"></ul>
+
+          <a href="{% url 'settings_view' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-pencil me-1"></i>Редактировать профиль
+          </a>
         </div>
-
       </div>
     </div>
   </div>
@@ -75,9 +63,7 @@
             <table class="table table-sm table-hover d-none" id="ordersTable">
               <thead>
                 <tr>
-                  <th>№</th>
-                  <th>Дата</th>
-                  <th>Адрес</th>
+                  <th>№</th><th>Дата</th><th>Адрес</th>
                   <th class="text-end">Сумма</th>
                 </tr>
               </thead>
@@ -85,15 +71,14 @@
             </table>
           </div>
         </div>
-
       </div>
     </div>
   </div>
-</div>
+
+</div><!-- /row -->
 
 {% else %}
 
-<!-- Гость -->
 <div class="text-center py-5">
   <i class="bi bi-person-lock fs-1 text-muted d-block mb-3"></i>
   <h2>Личный кабинет</h2>
@@ -108,85 +93,86 @@
 {% block scripts %}
 {% if user.is_authenticated %}
 <script>
-// ---------- Загрузка профиля ----------
+/* ---- Единый обработчик ошибок 401/403 ---- */
+function handleAuthError(status, container) {
+  if (status === 401 || status === 403) {
+    container.innerHTML =
+      `<div class="alert alert-warning">
+         <i class="bi bi-lock me-1"></i>
+         Ошибка ${status}: нет доступа.
+         <a href="/accounts/login/">Войти снова</a>
+       </div>`;
+  }
+}
+
+/* ---- Загрузка профиля ---- */
 async function loadProfile() {
+  const loading = document.getElementById('profileLoading');
+  const dataEl  = document.getElementById('profileData');
+
   try {
     const resp = await fetch('/api/me/', {
       headers: { 'X-CSRFToken': window.CSRF_TOKEN }
     });
 
-    if (resp.status === 401 || resp.status === 403) {
-      document.getElementById('profileLoading').innerHTML =
-        '<p class="text-danger small">Нет доступа (401/403).</p>';
-      return;
-    }
+    if (!resp.ok) { handleAuthError(resp.status, loading); return; }
 
-    const data = await resp.json();
-    document.getElementById('pUsername').textContent = data.username || '—';
-    document.getElementById('pEmail').textContent    = data.email    || '—';
-    document.getElementById('pRole').textContent     = data.is_staff ? 'Администратор' : 'Покупатель';
-    document.getElementById('pFullName').value = data.full_name || '';
-    document.getElementById('pPhone').value   = data.phone     || '';
-    document.getElementById('pAddress').value = data.address   || '';
+    const d = await resp.json();
 
-    document.getElementById('profileLoading').classList.add('d-none');
-    document.getElementById('profileData').classList.remove('d-none');
-  } catch (err) {
-    document.getElementById('profileLoading').innerHTML =
-      '<p class="text-danger small">Не удалось загрузить профиль.</p>';
-  }
-}
-
-// ---------- Сохранение профиля (PATCH /api/me/) ----------
-async function saveProfile() {
-  const body = {
-    full_name: document.getElementById('pFullName').value,
-    phone:     document.getElementById('pPhone').value,
-    address:   document.getElementById('pAddress').value,
-  };
-
-  const status = document.getElementById('profileSaveStatus');
-  status.textContent = 'Сохраняем…';
-
-  try {
-    const resp = await fetch('/api/me/', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': window.CSRF_TOKEN,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (resp.ok) {
-      status.innerHTML = '<span class="text-success"><i class="bi bi-check2"></i> Сохранено!</span>';
+    /* Бейдж роли */
+    const roleBadge = document.getElementById('roleBadge');
+    if (d.is_staff) {
+      roleBadge.innerHTML =
+        '<span class="badge fs-6 px-3 py-2" style="background:var(--color-accent)">' +
+        '<i class="bi bi-shield-check me-1"></i>Администратор</span>';
     } else {
-      const err = await resp.json();
-      status.innerHTML = `<span class="text-danger">Ошибка: ${JSON.stringify(err)}</span>`;
+      roleBadge.innerHTML =
+        '<span class="badge bg-secondary fs-6 px-3 py-2">' +
+        '<i class="bi bi-person me-1"></i>Покупатель</span>';
     }
+
+    /* Список полей */
+    const rows = [
+      ['Логин',             d.username             || '—'],
+      ['Email',             d.email                || '—'],
+      ['ФИО',               d.full_name            || '—'],
+      ['Телефон',           d.phone                || '—'],
+      ['Адрес доставки',    d.address              || '—'],
+      ['Город доставки',    d.city                 || '—'],
+    ];
+
+    document.getElementById('profileList').innerHTML = rows.map(([k, v]) =>
+      `<li class="list-group-item d-flex justify-content-between px-0">
+         <span class="text-muted small">${k}</span>
+         <span class="fw-semibold text-end">${v}</span>
+       </li>`
+    ).join('');
+
+    loading.classList.add('d-none');
+    dataEl.classList.remove('d-none');
+
   } catch {
-    status.innerHTML = '<span class="text-danger">Ошибка соединения.</span>';
+    loading.innerHTML = '<p class="text-danger small">Не удалось загрузить профиль.</p>';
   }
 }
 
-// ---------- Загрузка заказов ----------
+/* ---- Загрузка заказов ---- */
 async function loadOrders() {
+  const loading = document.getElementById('ordersLoading');
+  const dataEl  = document.getElementById('ordersData');
+
   try {
     const resp = await fetch('/api/orders/', {
       headers: { 'X-CSRFToken': window.CSRF_TOKEN }
     });
 
-    if (resp.status === 401 || resp.status === 403) {
-      document.getElementById('ordersLoading').innerHTML =
-        '<p class="text-danger small">Ошибка 401/403.</p>';
-      return;
-    }
+    if (!resp.ok) { handleAuthError(resp.status, loading); return; }
 
-    const data = await resp.json();
-    const orders = data.results || data;
+    const data   = await resp.json();
+    const orders = data.results ?? data;
 
-    document.getElementById('ordersLoading').classList.add('d-none');
-    document.getElementById('ordersData').classList.remove('d-none');
+    loading.classList.add('d-none');
+    dataEl.classList.remove('d-none');
 
     if (!orders.length) {
       document.getElementById('ordersEmpty').classList.remove('d-none');
@@ -202,15 +188,13 @@ async function loadOrders() {
           <td>${d}</td>
           <td>${o.delivery_address}</td>
           <td class="text-end">${parseFloat(o.total_price).toFixed(2)} руб.</td>
-        </tr>
-      `);
+        </tr>`);
     });
 
     document.getElementById('ordersTable').classList.remove('d-none');
 
-  } catch (err) {
-    document.getElementById('ordersLoading').innerHTML =
-      '<p class="text-danger small">Не удалось загрузить заказы.</p>';
+  } catch {
+    loading.innerHTML = '<p class="text-danger small">Не удалось загрузить заказы.</p>';
   }
 }
 

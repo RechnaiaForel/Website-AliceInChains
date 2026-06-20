@@ -2,3 +2,16 @@
 **/.venv/
 *.pyc
 **/__pycache__/
+
+# Переменные окружения (секреты!)
+.env
+
+# База данных
+db.sqlite3
+db.sqlite3-journal
+
+# Django staticfiles (собираются автоматически при деплое)
+/staticfiles/
+
+# Логи
+*.log

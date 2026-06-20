@@ -2,8 +2,9 @@ import io
 
 import openpyxl
 from django.contrib import messages
-from django.contrib.auth import login as auth_login
+from django.contrib.auth import login as auth_login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import PasswordChangeForm
 from django.core.mail import EmailMessage
 from django.conf import settings
 from django.db.models import Q
@@ -14,7 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .forms import RegistrationForm
+from .forms import RegistrationForm, ProfileUpdateForm
 from .models import Cart, CartItem, Category, Manufacturer, Order, OrderItem, Product, Profile
 from .permissions import IsAdminOrReadOnly
 from .serializers import (
@@ -78,6 +79,48 @@ def profile_view(request):
     сообщение с предложением войти.
     """
     return render(request, 'shop/profile.html')
+
+
+@login_required
+def settings_view(request):
+    """
+    Страница «Настройки»: смена email/профиля и смена пароля.
+    Две формы на одной странице, различаем их по скрытому полю `form_type`.
+    """
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+
+    profile_form  = ProfileUpdateForm(instance=profile,
+                                      initial={'email': request.user.email})
+    password_form = PasswordChangeForm(request.user)
+
+    if request.method == 'POST':
+        form_type = request.POST.get('form_type')
+
+        if form_type == 'profile':
+            profile_form = ProfileUpdateForm(request.POST, instance=profile)
+            if profile_form.is_valid():
+                profile_form.save()
+                # Обновляем email у самого User
+                new_email = profile_form.cleaned_data.get('email', '').strip()
+                if new_email:
+                    request.user.email = new_email
+                    request.user.save(update_fields=['email'])
+                messages.success(request, 'Данные профиля обновлены.')
+                return redirect('settings_view')
+
+        elif form_type == 'password':
+            password_form = PasswordChangeForm(request.user, request.POST)
+            if password_form.is_valid():
+                user = password_form.save()
+                # Сохраняем сессию после смены пароля (без этого — разлогин)
+                update_session_auth_hash(request, user)
+                messages.success(request, 'Пароль успешно изменён.')
+                return redirect('settings_view')
+
+    return render(request, 'shop/settings.html', {
+        'profile_form':  profile_form,
+        'password_form': password_form,
+    })
 
 
 # ---------------------------------------------------------------------------

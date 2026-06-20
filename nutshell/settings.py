@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import dj_database_url
+from decouple import Csv, config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +22,44 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure--)(c!n5tfls+8!fe+m3*3r*jy+ixp5(v7uq_)s00p=+r_jz6$u'
+# Значение по умолчанию работает только локально для разработки.
+SECRET_KEY = config(
+    'SECRET_KEY',
+    default='django-insecure--)(c!n5tfls+8!fe+m3*3r*jy+ixp5(v7uq_)s00p=+r_jz6$u',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+# Локально по умолчанию работают localhost/127.0.0.1.
+# На Railway переменная ALLOWED_HOSTS задаётся в окружении и должна
+# включать домен вида *.up.railway.app (см. README/инструкцию деплоя).
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='127.0.0.1,localhost',
+    cast=Csv(),
+)
+
+# CORS (опционально)
+# В этом проекте django-cors-headers не используется (сайт обслуживает и
+# фронтенд, и API из одного и того же Django-приложения, так что
+# cross-origin запросов нет). Но если пакет будет добавлен в будущем,
+# раскомментируйте 'corsheaders' в INSTALLED_APPS и
+# 'corsheaders.middleware.CorsMiddleware' в MIDDLEWARE (первым в списке) —
+# CORS_ALLOWED_ORIGINS ниже уже настроен и подхватит переменную окружения.
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='https://*.up.railway.app',
+    cast=Csv(),
+)
+
+# Railway работает за прокси и подставляет заголовок X-Forwarded-Proto;
+# без этого Django не доверяет CSRF-проверке за HTTPS-прокси.
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='https://*.up.railway.app',
+    cast=Csv(),
+)
 
 
 # Application definition
@@ -43,6 +77,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -73,12 +108,16 @@ WSGI_APPLICATION = 'nutshell.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
+#
+# На Railway переменная DATABASE_URL подставляется автоматически после
+# подключения сервиса PostgreSQL (Add Service -> Database -> PostgreSQL).
+# Локально, если DATABASE_URL не задана, используется sqlite3 — это
+# позволяет продолжать разработку без поднятия Postgres на своей машине.
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+    )
 }
 
 
@@ -118,6 +157,18 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# WhiteNoise отдаёт статику прямо из приложения (без отдельного Nginx) и
+# сжимает/кеширует файлы с хешем в имени — это то, что нужно на Railway.
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
 
 # Файлы, загружаемые пользователями / используемые моделями (фото товаров)
 # https://docs.djangoproject.com/en/6.0/topics/files/
@@ -129,6 +180,20 @@ MEDIA_ROOT = BASE_DIR
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Безопасность в продакшне
+# https://docs.djangoproject.com/en/6.0/topics/security/
+#
+# Когда DEBUG=False (то есть мы в проде, на Railway), включаем secure-флаги
+# для cookies, чтобы они передавались только по HTTPS. Локально (DEBUG=True
+# по умолчанию) эти флаги не включаются — иначе сайт не будет работать по
+# обычному http://127.0.0.1:8000.
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Аутентификация

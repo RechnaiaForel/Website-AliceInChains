@@ -59,6 +59,11 @@
               <i class="bi bi-person-circle"></i> {{ user.username }}
             </a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'settings_view' %}">
+              <i class="bi bi-gear"></i> Настройки
+            </a>
+          </li>
           {% if user.is_staff %}
             <li class="nav-item">
               <a class="nav-link" href="{% url 'admin:index' %}">

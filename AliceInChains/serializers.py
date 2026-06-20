@@ -77,10 +77,18 @@ class ProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.EmailField(source='user.email', read_only=True)
     is_staff = serializers.BooleanField(source='user.is_staff', read_only=True)
+    # Читаемое название категории (для отображения в кабинете)
+    favorite_category_name = serializers.CharField(
+        source='favorite_category.name', read_only=True, allow_null=True
+    )
 
     class Meta:
         model = Profile
-        fields = ['username', 'email', 'is_staff', 'full_name', 'phone', 'address']
+        fields = [
+            'username', 'email', 'is_staff',
+            'full_name', 'phone', 'address',
+            'city', 'favorite_category', 'favorite_category_name',
+        ]
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

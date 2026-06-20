@@ -54,8 +54,9 @@ class OrderItemAdmin(admin.ModelAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'full_name', 'phone', 'is_admin')
-    search_fields = ('user__username', 'full_name', 'phone')
+    list_display = ('id', 'user', 'full_name', 'city', 'favorite_category', 'is_admin')
+    list_filter  = ('favorite_category',)
+    search_fields = ('user__username', 'full_name', 'phone', 'city')
 
     def is_admin(self, obj):
         return obj.user.is_staff

@@ -111,6 +111,16 @@ class Profile(models.Model):
     full_name = models.CharField(max_length=150, blank=True)
     phone = models.CharField(max_length=20, blank=True)
     address = models.CharField(max_length=255, blank=True)
+    # Индивидуальные поля для музыкального магазина
+    city = models.CharField(max_length=100, blank=True, verbose_name='Город доставки')
+    favorite_category = models.ForeignKey(
+        'Category',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fans',
+        verbose_name='Любимая категория',
+    )
 
     def __str__(self):
         return f"Профиль пользователя {self.user.username}"
